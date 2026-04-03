@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, Fragment } from 'react'
 import { addWeeks, subWeeks, startOfWeek, addDays, format, parseISO, isSameDay } from 'date-fns'
 import { toZonedTime } from 'date-fns-tz'
 import { Button } from '@/components/ui/button'
@@ -118,10 +118,9 @@ export function CalendarClient({
 
           {/* Time rows */}
           {HOURS.map((hour) => (
-            <>
+            <Fragment key={hour}>
               {/* Time label */}
               <div
-                key={`time-${hour}`}
                 className="border-b px-2 py-0 text-right text-xs text-muted-foreground leading-none"
                 style={{ height: 60 }}
               >
@@ -166,7 +165,7 @@ export function CalendarClient({
                   </div>
                 )
               })}
-            </>
+            </Fragment>
           ))}
         </div>
       </div>

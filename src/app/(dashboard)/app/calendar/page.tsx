@@ -20,7 +20,7 @@ export default async function CalendarPage() {
 
   const [staff, bookings] = await Promise.all([
     getActiveStaff(tenant.businessId),
-    getBookingsForWeek(tenant.businessId, weekStartIso),
+    getBookingsForWeek(weekStartIso),
   ])
 
   return (

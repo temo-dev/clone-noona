@@ -55,7 +55,7 @@ export default async function OnboardingReadyPage() {
               </ul>
             </div>
 
-            <Button render={<Link href="/app/dashboard" />} className="w-full">
+            <Button nativeButton={false} render={<Link href="/app/dashboard" />} className="w-full">
               Go to dashboard →
             </Button>
           </CardContent>

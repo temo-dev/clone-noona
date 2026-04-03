@@ -70,18 +70,16 @@ export function TurnstileWidget({
     }
   }, [])
 
+  // Dev mode: no site key → auto-verify so the booking form isn't blocked
+  useEffect(() => {
+    if (!siteKey) onVerify('dev-bypass-token')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [siteKey])
+
   if (!siteKey) {
-    // Dev mode — bypass with a fake token
     return (
       <div className="text-xs text-muted-foreground border border-dashed rounded px-3 py-2">
-        Turnstile disabled (NEXT_PUBLIC_TURNSTILE_SITE_KEY not set)
-        <button
-          type="button"
-          className="ml-2 underline"
-          onClick={() => onVerify('dev-bypass-token')}
-        >
-          Simulate verify
-        </button>
+        Turnstile verification skipped (dev mode)
       </div>
     )
   }

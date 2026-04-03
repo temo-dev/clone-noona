@@ -89,14 +89,14 @@ export default async function BookingConfirmationPage({
           <div className="space-y-2 pt-2">
             <Button
               className="w-full"
-              render={<Link href={`/b/${slug}/booking/${token}/reschedule`} />}
+              nativeButton={false} render={<Link href={`/b/${slug}/booking/${token}/reschedule`} />}
             >
               Reschedule
             </Button>
             <Button
               variant="outline"
               className="w-full text-destructive hover:text-destructive"
-              render={<Link href={`/b/${slug}/booking/${token}/cancel`} />}
+              nativeButton={false} render={<Link href={`/b/${slug}/booking/${token}/cancel`} />}
             >
               Cancel this booking
             </Button>

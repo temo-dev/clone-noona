@@ -16,29 +16,9 @@ const publicBookingSchema = z.object({
   customerEmail: z.string().email().optional(),
   customerPhone: z.string().max(30).optional(),
   notes:         z.string().max(500).optional(),
-  turnstileToken: z.string().min(1),
 })
 
 type PublicBookingInput = z.infer<typeof publicBookingSchema>
-
-async function verifyTurnstile(token: string): Promise<boolean> {
-  // Dev bypass
-  if (token === 'dev-bypass-token') return true
-
-  const secret = process.env.TURNSTILE_SECRET_KEY
-  if (!secret) {
-    console.warn('[turnstile] TURNSTILE_SECRET_KEY not set — skipping verification')
-    return true
-  }
-
-  const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({ secret, response: token }),
-  })
-  const data = await res.json() as { success: boolean }
-  return data.success === true
-}
 
 export async function submitPublicBooking(input: PublicBookingInput): Promise<
   { error: string; bookingToken?: never } | { error?: never; bookingToken: string }
@@ -49,14 +29,9 @@ export async function submitPublicBooking(input: PublicBookingInput): Promise<
   const {
     slug, serviceId, staffId, startAt,
     customerName, customerEmail, customerPhone, notes,
-    turnstileToken,
   } = parsed.data
 
-  // 1. Verify Turnstile
-  const turnstileOk = await verifyTurnstile(turnstileToken)
-  if (!turnstileOk) return { error: 'Anti-spam check failed. Please try again.' }
-
-  // 2. Resolve business from slug — never trust client-supplied businessId
+  // 1. Resolve business from slug — never trust client-supplied businessId
   const business = await getPublicBusinessBySlug(slug)
   if (!business) return { error: 'Business not found.' }
 

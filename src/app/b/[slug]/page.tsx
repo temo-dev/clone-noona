@@ -39,7 +39,7 @@ export default async function PublicBusinessPage({
             {business.address && <span>{business.address}</span>}
           </div>
           <div className="mt-6">
-            <Button size="lg" render={<Link href={`/b/${slug}/book`} />}>
+            <Button size="lg" nativeButton={false} render={<Link href={`/b/${slug}/book`} />}>
               Book an appointment
             </Button>
           </div>
@@ -63,7 +63,7 @@ export default async function PublicBusinessPage({
                     {s.price != null && ` · ${s.price.toLocaleString('vi-VN')}đ`}
                   </p>
                 </div>
-                <Button variant="outline" size="sm" render={<Link href={`/b/${slug}/book?serviceId=${s.id}`} />}>
+                <Button variant="outline" size="sm" nativeButton={false} render={<Link href={`/b/${slug}/book?serviceId=${s.id}`} />}>
                   Book
                 </Button>
               </div>

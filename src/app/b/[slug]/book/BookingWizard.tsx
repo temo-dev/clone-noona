@@ -7,8 +7,6 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Badge } from '@/components/ui/badge'
-import { TurnstileWidget } from '@/components/booking/TurnstileWidget'
 import { submitPublicBooking } from '../actions'
 import type { PublicService, PublicStaff } from '@/modules/booking/public-queries'
 
@@ -28,7 +26,6 @@ type WizardState = {
   email: string
   phone: string
   notes: string
-  turnstileToken: string
 }
 
 const STEP_LABELS = ['Service', 'Staff', 'Date & Time', 'Your info']
@@ -63,7 +60,6 @@ export function BookingWizard({
     slots: [],
     loadingSlots: false,
     name: '', email: '', phone: '', notes: '',
-    turnstileToken: '',
   })
 
   function patch(updates: Partial<WizardState>) {
@@ -103,7 +99,6 @@ export function BookingWizard({
         customerEmail: state.email || undefined,
         customerPhone: state.phone || undefined,
         notes: state.notes || undefined,
-        turnstileToken: state.turnstileToken,
       })
       if (result.error) {
         toast.error(result.error)
@@ -321,21 +316,13 @@ export function BookingWizard({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label>Verification</Label>
-            <TurnstileWidget
-              onVerify={(token) => patch({ turnstileToken: token })}
-              onExpire={() => patch({ turnstileToken: '' })}
-            />
-          </div>
-
           <div className="flex gap-2 pt-2">
             <Button variant="ghost" onClick={() => patch({ step: 3 })}>
               ← Back
             </Button>
             <Button
               onClick={handleSubmit}
-              disabled={isPending || !state.name || !state.turnstileToken}
+              disabled={isPending || !state.name}
               className="flex-1"
             >
               {isPending ? 'Booking…' : 'Confirm booking'}

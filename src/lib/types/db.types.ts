@@ -12,6 +12,31 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
   public: {
     Tables: {
       booking_audit_logs: {
@@ -799,6 +824,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_auth_business_ids: { Args: never; Returns: string[] }
       reschedule_booking_by_member: {
         Args: { p_booking_id: string; p_new_start_at: string }
         Returns: {
@@ -866,6 +892,14 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      update_staff_services: {
+        Args: {
+          p_business_id: string
+          p_service_ids: string[]
+          p_staff_id: string
+        }
+        Returns: undefined
       }
     }
     Enums: {
@@ -995,6 +1029,9 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {},
   },

@@ -11,8 +11,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'weekStart required' }, { status: 400 })
     }
 
-    const tenant = await getCurrentTenant()
-    const bookings = await getBookingsForWeek(tenant.businessId, weekStart)
+    const bookings = await getBookingsForWeek(weekStart)
     return NextResponse.json(bookings)
   } catch {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

@@ -262,17 +262,15 @@ export async function updateStaffServicesAction(staffId: string, serviceIds: str
     .single()
   if (!staffRow) return { error: 'Staff not found.' }
 
-  // Delete all existing assignments for this staff member, then re-insert
-  await supabase.from('staff_services').delete().eq('staff_id', staffId)
-
-  if (serviceIds.length > 0) {
-    const inserts = serviceIds.map((serviceId) => ({
-      business_id: tenant.businessId,
-      staff_id: staffId,
-      service_id: serviceId,
-    }))
-    const { error } = await supabase.from('staff_services').insert(inserts)
-    if (error) return { error: 'Failed to update service assignments.' }
+  // Atomic replace via RPC (DELETE not-in-list + INSERT new — single transaction)
+  const { error } = await supabase.rpc('update_staff_services', {
+    p_business_id: tenant.businessId,
+    p_staff_id:    staffId,
+    p_service_ids: serviceIds,
+  })
+  if (error) {
+    if (error.message.includes('staff_not_found')) return { error: 'Staff not found.' }
+    return { error: 'Failed to update service assignments.' }
   }
 
   revalidatePath('/app/settings/staff')
@@ -458,6 +456,7 @@ export async function removeMemberAction(memberId: string) {
 
   if (!member) return { error: 'Member not found.' }
   if (member.role === 'owner') return { error: 'Cannot remove the owner.' }
+  if (member.user_id === tenant.userId) return { error: 'You cannot remove yourself.' }
 
   const { error } = await supabase
     .from('business_members')
@@ -481,13 +480,14 @@ export async function updateMemberRoleAction(memberId: string, role: string) {
 
   const { data: member } = await supabase
     .from('business_members')
-    .select('role')
+    .select('role, user_id')
     .eq('id', memberId)
     .eq('business_id', tenant.businessId)
     .single()
 
   if (!member) return { error: 'Member not found.' }
   if (member.role === 'owner') return { error: 'Cannot change the owner role.' }
+  if (member.user_id === tenant.userId) return { error: 'You cannot change your own role.' }
 
   const { error } = await supabase
     .from('business_members')

@@ -220,7 +220,8 @@ export async function rescheduleBookingAction(bookingId: string, newStartAt: str
 
 // ─── Fetch bookings for a week (used by API route) ───────────────────────────
 
-export async function getBookingsForWeek(businessId: string, weekStart: string) {
+export async function getBookingsForWeek(weekStart: string) {
+  const tenant = await getCurrentTenant()
   const supabase = await createSupabaseServerClient()
   const weekEnd = new Date(weekStart)
   weekEnd.setDate(weekEnd.getDate() + 7)
@@ -235,7 +236,7 @@ export async function getBookingsForWeek(businessId: string, weekStart: string) 
       staff_id, customer_id,
       customers(full_name, email, phone)
     `)
-    .eq('business_id', businessId)
+    .eq('business_id', tenant.businessId)
     .gte('start_at', weekStart)
     .lt('start_at', weekEnd.toISOString())
     .neq('status', 'cancelled')
