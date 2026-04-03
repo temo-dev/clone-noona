@@ -255,7 +255,7 @@ export async function buildEmailData(bookingId: string): Promise<BookingEmailDat
     startAt:         data.start_at,
     endAt:           data.end_at,
     timezone:        data.timezone,
-    bookingToken:    data.booking_access_token,
+    bookingToken:    data.booking_access_token ?? '',
     cancelReason:    data.cancel_reason,
   }
 }

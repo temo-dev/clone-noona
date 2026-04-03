@@ -20,7 +20,7 @@ export async function cancelByTokenAction(
 
   const { error } = await supabase.rpc('cancel_booking_by_token', {
     p_token:  token,
-    p_reason: reason ?? null,
+    p_reason: reason ?? undefined,
   })
 
   if (error) {

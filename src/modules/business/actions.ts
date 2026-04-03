@@ -1,7 +1,7 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 import { getCurrentTenant } from '@/modules/auth/current-tenant'
 import { requireRole } from '@/modules/auth/role-guard'
 import { createBusinessSchema, createServiceSchema, createStaffSchema } from '@/lib/types/schemas'
@@ -24,8 +24,9 @@ export async function updateBusinessAction(formData: FormData) {
 
   const supabase = await createSupabaseServerClient()
 
-  // Check slug uniqueness (excluding current business)
-  const { data: slugConflict } = await supabase
+  // Check slug uniqueness using service client (bypasses RLS to see ALL slugs)
+  const service = createSupabaseServiceClient()
+  const { data: slugConflict } = await service
     .from('businesses')
     .select('id')
     .eq('slug', parsed.data.slug)
@@ -376,5 +377,126 @@ export async function restoreServiceAction(serviceId: string) {
   if (error) return { error: 'Failed to restore service.' }
 
   revalidatePath('/app/settings/services')
+  return { success: true }
+}
+
+// ─── Members ──────────────────────────────────────────────────────────────────
+
+export async function inviteMemberAction(email: string, role: string) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner'])
+
+  if (!email || !email.includes('@')) return { error: 'Invalid email address.' }
+  if (!['manager', 'staff'].includes(role)) return { error: 'Invalid role.' }
+
+  // Look up user by email in profiles (service client to read auth data)
+  const service = createSupabaseServiceClient()
+  const { data: profile } = await service
+    .from('profiles')
+    .select('id')
+    .eq('email', email)
+    .single()
+
+  if (!profile) {
+    return { error: 'No account found with that email. They must register first.' }
+  }
+
+  // Prevent inviting yourself
+  if (profile.id === tenant.userId) return { error: 'You cannot invite yourself.' }
+
+  const supabase = await createSupabaseServerClient()
+
+  // Check if already a member
+  const { data: existing } = await supabase
+    .from('business_members')
+    .select('id, status')
+    .eq('business_id', tenant.businessId)
+    .eq('user_id', profile.id)
+    .single()
+
+  if (existing) {
+    if (existing.status === 'active') return { error: 'This person is already a member.' }
+    // Re-activate if previously removed
+    const { error } = await supabase
+      .from('business_members')
+      .update({ role, status: 'active', joined_at: new Date().toISOString() })
+      .eq('id', existing.id)
+    if (error) return { error: 'Failed to re-add member.' }
+    revalidatePath('/app/settings/members')
+    return { success: true }
+  }
+
+  const { error } = await supabase
+    .from('business_members')
+    .insert({
+      business_id: tenant.businessId,
+      user_id:     profile.id,
+      role,
+      status:      'active',
+      joined_at:   new Date().toISOString(),
+    })
+
+  if (error) return { error: 'Failed to add member.' }
+
+  revalidatePath('/app/settings/members')
+  return { success: true }
+}
+
+export async function removeMemberAction(memberId: string) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner'])
+
+  const supabase = await createSupabaseServerClient()
+
+  // Prevent removing the owner themselves
+  const { data: member } = await supabase
+    .from('business_members')
+    .select('user_id, role')
+    .eq('id', memberId)
+    .eq('business_id', tenant.businessId)
+    .single()
+
+  if (!member) return { error: 'Member not found.' }
+  if (member.role === 'owner') return { error: 'Cannot remove the owner.' }
+
+  const { error } = await supabase
+    .from('business_members')
+    .update({ status: 'removed' })
+    .eq('id', memberId)
+    .eq('business_id', tenant.businessId)
+
+  if (error) return { error: 'Failed to remove member.' }
+
+  revalidatePath('/app/settings/members')
+  return { success: true }
+}
+
+export async function updateMemberRoleAction(memberId: string, role: string) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner'])
+
+  if (!['manager', 'staff'].includes(role)) return { error: 'Invalid role.' }
+
+  const supabase = await createSupabaseServerClient()
+
+  const { data: member } = await supabase
+    .from('business_members')
+    .select('role')
+    .eq('id', memberId)
+    .eq('business_id', tenant.businessId)
+    .single()
+
+  if (!member) return { error: 'Member not found.' }
+  if (member.role === 'owner') return { error: 'Cannot change the owner role.' }
+
+  const { error } = await supabase
+    .from('business_members')
+    .update({ role })
+    .eq('id', memberId)
+    .eq('business_id', tenant.businessId)
+
+  if (error) return { error: 'Failed to update role.' }
+
+  revalidatePath('/app/settings/members')
   return { success: true }
 }

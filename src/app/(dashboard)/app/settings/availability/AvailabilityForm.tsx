@@ -25,8 +25,8 @@ function defaultRows(saved: BusinessHours[]): HoursRow[] {
       ? {
           weekday: i,
           is_closed: existing.is_closed,
-          start_time: existing.start_time.slice(0, 5),
-          end_time: existing.end_time.slice(0, 5),
+          start_time: (existing.start_time ?? '09:00').slice(0, 5),
+          end_time: (existing.end_time ?? '18:00').slice(0, 5),
         }
       : { weekday: i, is_closed: i === 0 || i === 6, start_time: '09:00', end_time: '18:00' }
   })

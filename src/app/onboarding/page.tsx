@@ -68,7 +68,9 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <Card className="w-full max-w-md">
+      <div className="w-full max-w-md space-y-4">
+        <StepIndicator current={1} total={3} />
+      <Card className="w-full">
         <CardHeader className="space-y-1">
           <CardTitle className="text-2xl">Set up your business</CardTitle>
           <CardDescription>
@@ -136,11 +138,35 @@ export default function OnboardingPage() {
           </CardContent>
           <CardFooter>
             <Button type="submit" className="w-full" disabled={isPending}>
-              {isPending ? 'Creating…' : 'Create my booking page'}
+              {isPending ? 'Creating…' : 'Continue →'}
             </Button>
           </CardFooter>
         </form>
       </Card>
+      </div>
+    </div>
+  )
+}
+
+function StepIndicator({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="flex items-center justify-center gap-2">
+      {Array.from({ length: total }, (_, i) => i + 1).map((step) => (
+        <div key={step} className="flex items-center gap-2">
+          <div
+            className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+              step < current
+                ? 'bg-primary text-primary-foreground'
+                : step === current
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground'
+            }`}
+          >
+            {step < current ? '✓' : step}
+          </div>
+          {step < total && <div className={`w-8 h-0.5 ${step < current ? 'bg-primary' : 'bg-muted'}`} />}
+        </div>
+      ))}
     </div>
   )
 }

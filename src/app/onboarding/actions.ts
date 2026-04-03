@@ -1,7 +1,7 @@
 'use server'
 
 import { redirect } from 'next/navigation'
-import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { createSupabaseServerClient, createSupabaseServiceClient } from '@/lib/supabase/server'
 import { createBusinessSchema } from '@/lib/types/schemas'
 
 export async function createBusinessAction(formData: FormData) {
@@ -28,8 +28,9 @@ export async function createBusinessAction(formData: FormData) {
     redirect('/login')
   }
 
-  // Check slug availability
-  const { data: existing } = await supabase
+  // Check slug availability using service client (bypasses RLS so we see ALL slugs)
+  const service = createSupabaseServiceClient()
+  const { data: existing } = await service
     .from('businesses')
     .select('id')
     .eq('slug', parsed.data.slug)
@@ -54,6 +55,11 @@ export async function createBusinessAction(formData: FormData) {
     .single()
 
   if (bizError || !business) {
+    // Unique violation — slug was just taken by a concurrent request
+    if (bizError?.code === '23505') {
+      return { error: 'This URL is already taken. Please choose a different one.' }
+    }
+    console.error('createBusinessAction bizError:', bizError?.message, bizError?.code)
     return { error: 'Failed to create business. Please try again.' }
   }
 
@@ -72,5 +78,5 @@ export async function createBusinessAction(formData: FormData) {
     return { error: 'Failed to set up your account. Please try again.' }
   }
 
-  redirect('/app/dashboard')
+  redirect('/onboarding/staff')
 }

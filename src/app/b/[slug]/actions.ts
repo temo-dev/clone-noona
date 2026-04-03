@@ -105,7 +105,7 @@ export async function submitPublicBooking(input: PublicBookingInput): Promise<
     p_start_at:    startAt,
     p_timezone:    business.timezone,
     p_source:      'public',
-    p_notes:       notes ?? null,
+    p_notes:       notes ?? undefined,
   })
 
   if (error) {
@@ -118,12 +118,12 @@ export async function submitPublicBooking(input: PublicBookingInput): Promise<
     return { error: 'Failed to create booking. Please try again.' }
   }
 
-  const booking = data as { id: string; booking_access_token: string }
+  const booking = data as { id: string; booking_access_token: string | null }
 
   // 7. Send booking_created email (fire-and-forget — don't block the response)
   buildEmailData(booking.id).then((emailData) => {
     if (emailData) sendBookingCreatedEmail(emailData).catch(console.error)
   }).catch(console.error)
 
-  return { bookingToken: booking.booking_access_token }
+  return { bookingToken: booking.booking_access_token ?? '' }
 }

@@ -40,6 +40,7 @@ export default async function DashboardLayout({
         <Separator />
         <nav className="flex-1 p-2 space-y-1">
           <NavItem href="/app/dashboard" label="Dashboard" />
+          <NavItem href="/app/analytics" label="Analytics" />
           <NavItem href="/app/calendar" label="Calendar" />
           <NavItem href="/app/bookings" label="Bookings" />
           <Separator className="my-2" />

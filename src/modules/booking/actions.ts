@@ -98,7 +98,7 @@ export async function createBookingAction(raw: unknown) {
     p_start_at:    startAt,
     p_timezone:    biz.timezone,
     p_source:      'admin',
-    p_notes:       notes || null,
+    p_notes:       notes || undefined,
   })
 
   if (error) {
@@ -168,7 +168,7 @@ export async function cancelBookingAction(bookingId: string, reason?: string) {
 
   const { error } = await supabase.rpc('cancel_booking_by_member', {
     p_booking_id: bookingId,
-    p_reason:     reason ?? null,
+    p_reason:     reason ?? undefined,
   })
 
   if (error) {
