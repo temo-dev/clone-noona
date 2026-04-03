@@ -1,5 +1,7 @@
 -- 0011_bookings.sql
 
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
 CREATE TABLE bookings (
   id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id uuid NOT NULL REFERENCES businesses(id) ON DELETE CASCADE,
@@ -21,7 +23,7 @@ CREATE TABLE bookings (
   source        text NOT NULL DEFAULT 'public' CHECK (source IN ('public', 'admin')),
   notes         text,
   cancel_reason text,
-  booking_access_token text UNIQUE DEFAULT encode(gen_random_bytes(32), 'hex'),
+  booking_access_token text UNIQUE DEFAULT encode(extensions.gen_random_bytes(32), 'hex'),
 
   -- Snapshots: protect historical data when service/staff is later modified or archived
   service_name_snapshot             text    NOT NULL,
