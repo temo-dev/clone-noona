@@ -3,7 +3,6 @@ import Link from 'next/link'
 import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentTenant } from '@/modules/auth/current-tenant'
 import { logoutAction } from '@/app/(auth)/actions'
-import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 
 export default async function DashboardLayout({
@@ -65,9 +64,12 @@ export default async function DashboardLayout({
             </a>
           )}
           <form action={logoutAction}>
-            <Button variant="ghost" size="sm" className="w-full justify-start text-muted-foreground">
+            <button
+              type="submit"
+              className="w-full text-left px-3 py-2 text-sm rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+            >
               Sign out
-            </Button>
+            </button>
           </form>
         </div>
       </aside>
