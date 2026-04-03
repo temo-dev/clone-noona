@@ -50,7 +50,7 @@ export function AvailabilityForm({ savedHours }: { savedHours: BusinessHours[] }
 
   return (
     <div className="space-y-3">
-      <div className="grid grid-cols-[120px_80px_1fr] gap-2 text-xs font-medium text-muted-foreground mb-1 px-1">
+      <div className="hidden sm:grid grid-cols-[120px_80px_1fr] gap-2 text-xs font-medium text-muted-foreground mb-1 px-1">
         <span>Day</span>
         <span>Open</span>
         <span>Hours</span>
@@ -59,19 +59,20 @@ export function AvailabilityForm({ savedHours }: { savedHours: BusinessHours[] }
       {rows.map((row) => (
         <div
           key={row.weekday}
-          className="grid grid-cols-[120px_80px_1fr] items-center gap-2 rounded-lg border px-3 py-3"
+          className="flex flex-col sm:grid sm:grid-cols-[120px_80px_1fr] sm:items-center gap-2 rounded-lg border px-3 py-3"
         >
-          <span className="text-sm font-medium">{WEEKDAYS[row.weekday]}</span>
-
-          <Switch
-            checked={!row.is_closed}
-            onCheckedChange={(open) => updateRow(row.weekday, { is_closed: !open })}
-          />
+          <div className="flex items-center justify-between sm:contents">
+            <span className="text-sm font-medium">{WEEKDAYS[row.weekday]}</span>
+            <Switch
+              checked={!row.is_closed}
+              onCheckedChange={(open) => updateRow(row.weekday, { is_closed: !open })}
+            />
+          </div>
 
           {row.is_closed ? (
-            <span className="text-sm text-muted-foreground">Closed</span>
+            <span className="text-sm text-muted-foreground sm:col-start-3">Closed</span>
           ) : (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap sm:col-start-3">
               <Input
                 type="time"
                 value={row.start_time}

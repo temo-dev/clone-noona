@@ -73,15 +73,15 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRo
   return (
     <>
       {/* Filters */}
-      <div className="flex gap-3 mb-4">
+      <div className="flex flex-col sm:flex-row gap-3 mb-4">
         <Input
           placeholder="Search customer, service, staff…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="max-w-xs"
+          className="sm:max-w-xs"
         />
         <Select value={statusFilter} onValueChange={(v) => v && setStatusFilter(v)}>
-          <SelectTrigger className="w-44">
+          <SelectTrigger className="w-full sm:w-44">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -94,8 +94,8 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRo
         </Select>
       </div>
 
-      {/* Table */}
-      <div className="border rounded-lg overflow-hidden">
+      {/* Desktop table */}
+      <div className="hidden md:block border rounded-lg overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-muted/50">
             <tr>
@@ -155,6 +155,35 @@ export function BookingsClient({ initialBookings }: { initialBookings: BookingRo
             )}
           </tbody>
         </table>
+      </div>
+
+      {/* Mobile card list */}
+      <div className="md:hidden space-y-3">
+        {filtered.map((b) => (
+          <button
+            key={b.id}
+            onClick={() => openBooking(b)}
+            className="w-full text-left border rounded-xl p-4 bg-background hover:bg-muted/30 transition-colors"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="font-medium truncate">{b.customers?.full_name ?? '—'}</p>
+                <p className="text-sm text-muted-foreground">{b.service_name_snapshot}</p>
+              </div>
+              <Badge variant={STATUS_BADGE[b.status] ?? 'secondary'} className="shrink-0">
+                {b.status}
+              </Badge>
+            </div>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <span>{format(parseISO(b.start_at), 'MMM d · HH:mm')}</span>
+              {b.staff_name_snapshot && <span>{b.staff_name_snapshot}</span>}
+              <span>{b.service_duration_minutes_snapshot} min</span>
+            </div>
+          </button>
+        ))}
+        {filtered.length === 0 && (
+          <p className="text-center text-muted-foreground text-sm py-10">No bookings found.</p>
+        )}
       </div>
 
       <BookingDrawer

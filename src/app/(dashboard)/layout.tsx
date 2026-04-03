@@ -4,13 +4,13 @@ import { createSupabaseServerClient } from '@/lib/supabase/server'
 import { getCurrentTenant } from '@/modules/auth/current-tenant'
 import { logoutAction } from '@/app/(auth)/actions'
 import { Separator } from '@/components/ui/separator'
+import { MobileNav } from './MobileNav'
 
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  // getCurrentTenant handles unauthenticated + no-business redirects
   let tenant
   try {
     tenant = await getCurrentTenant()
@@ -28,10 +28,12 @@ export default async function DashboardLayout({
     .eq('id', tenant.businessId)
     .single()
 
+  const isOwnerOrManager = tenant.role === 'owner' || tenant.role === 'manager'
+
   return (
     <div className="flex min-h-screen">
-      {/* Sidebar */}
-      <aside className="w-60 border-r bg-background flex flex-col">
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-60 border-r bg-background flex-col shrink-0">
         <div className="p-4">
           <p className="font-semibold text-sm truncate">{business?.name ?? 'My Business'}</p>
           <p className="text-xs text-muted-foreground capitalize">{tenant.role}</p>
@@ -39,15 +41,15 @@ export default async function DashboardLayout({
         <Separator />
         <nav className="flex-1 p-2 space-y-1">
           <NavItem href="/app/dashboard" label="Dashboard" />
-          <NavItem href="/app/analytics" label="Analytics" />
-          <NavItem href="/app/calendar" label="Calendar" />
-          <NavItem href="/app/bookings" label="Bookings" />
+          <NavItem href="/app/analytics"  label="Analytics" />
+          <NavItem href="/app/calendar"   label="Calendar" />
+          <NavItem href="/app/bookings"   label="Bookings" />
           <Separator className="my-2" />
-          <NavItem href="/app/settings/business" label="Business" />
+          <NavItem href="/app/settings/business"     label="Business" />
           <NavItem href="/app/settings/availability" label="Availability" />
-          <NavItem href="/app/settings/staff" label="Staff" />
-          <NavItem href="/app/settings/services" label="Services" />
-          {(tenant.role === 'owner' || tenant.role === 'manager') && (
+          <NavItem href="/app/settings/staff"        label="Staff" />
+          <NavItem href="/app/settings/services"     label="Services" />
+          {isOwnerOrManager && (
             <NavItem href="/app/settings/members" label="Members" />
           )}
         </nav>
@@ -74,8 +76,18 @@ export default async function DashboardLayout({
         </div>
       </aside>
 
+      {/* Mobile navigation */}
+      <MobileNav
+        businessName={business?.name ?? 'My Business'}
+        businessSlug={business?.slug ?? null}
+        role={tenant.role}
+        isOwnerOrManager={isOwnerOrManager}
+      />
+
       {/* Main content */}
-      <main className="flex-1 overflow-auto">{children}</main>
+      <main className="flex-1 overflow-auto min-w-0">
+        {children}
+      </main>
     </div>
   )
 }

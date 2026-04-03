@@ -74,12 +74,12 @@ export function CalendarClient({
   return (
     <div className="flex flex-col h-full">
       {/* Toolbar */}
-      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4 flex-shrink-0">
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate(subWeeks(weekStart, 1))}>
             ←
           </Button>
-          <span className="text-sm font-medium w-48 text-center">
+          <span className="text-sm font-medium text-center min-w-0">
             {format(weekStart, 'MMM d')} – {format(addDays(weekStart, 6), 'MMM d, yyyy')}
           </span>
           <Button variant="outline" size="sm" onClick={() => navigate(addWeeks(weekStart, 1))}>
@@ -96,11 +96,11 @@ export function CalendarClient({
         <Button onClick={() => setCreateOpen(true)}>+ Booking</Button>
       </div>
 
-      {/* Calendar grid */}
+      {/* Calendar grid — horizontal scroll on mobile */}
       <div className="flex-1 overflow-auto border rounded-lg">
         <div
           className="grid"
-          style={{ gridTemplateColumns: `60px repeat(${days.length}, minmax(100px, 1fr))` }}
+          style={{ gridTemplateColumns: `50px repeat(${days.length}, minmax(90px, 1fr))`, minWidth: `${50 + days.length * 90}px` }}
         >
           {/* Header row */}
           <div className="sticky top-0 z-10 bg-background border-b" />
