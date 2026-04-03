@@ -1,0 +1,380 @@
+'use server'
+
+import { revalidatePath } from 'next/cache'
+import { createSupabaseServerClient } from '@/lib/supabase/server'
+import { getCurrentTenant } from '@/modules/auth/current-tenant'
+import { requireRole } from '@/modules/auth/role-guard'
+import { createBusinessSchema, createServiceSchema, createStaffSchema } from '@/lib/types/schemas'
+import { z } from 'zod'
+
+// ─── Business settings ────────────────────────────────────────────────────────
+
+export async function updateBusinessAction(formData: FormData) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const parsed = createBusinessSchema.safeParse({
+    name: formData.get('name'),
+    slug: formData.get('slug'),
+    timezone: formData.get('timezone'),
+    phone: formData.get('phone') || undefined,
+    address: formData.get('address') || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const supabase = await createSupabaseServerClient()
+
+  // Check slug uniqueness (excluding current business)
+  const { data: slugConflict } = await supabase
+    .from('businesses')
+    .select('id')
+    .eq('slug', parsed.data.slug)
+    .neq('id', tenant.businessId)
+    .single()
+  if (slugConflict) return { error: 'This URL is already taken.' }
+
+  const { error } = await supabase
+    .from('businesses')
+    .update({
+      name: parsed.data.name,
+      slug: parsed.data.slug,
+      timezone: parsed.data.timezone,
+      phone: parsed.data.phone ?? null,
+      address: parsed.data.address ?? null,
+    })
+    .eq('id', tenant.businessId)
+
+  if (error) return { error: 'Failed to update business.' }
+
+  revalidatePath('/app/settings/business')
+  return { success: true }
+}
+
+// ─── Business hours ───────────────────────────────────────────────────────────
+
+const businessHoursRowSchema = z.object({
+  weekday: z.coerce.number().int().min(0).max(6),
+  is_closed: z.boolean(),
+  start_time: z.string().regex(/^\d{2}:\d{2}$/),
+  end_time: z.string().regex(/^\d{2}:\d{2}$/),
+})
+
+export async function upsertBusinessHoursAction(
+  rows: Array<{
+    weekday: number
+    is_closed: boolean
+    start_time: string
+    end_time: string
+  }>
+) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const parsed = z.array(businessHoursRowSchema).safeParse(rows)
+  if (!parsed.success) return { error: 'Invalid hours data.' }
+
+  const supabase = await createSupabaseServerClient()
+
+  const upsertRows = parsed.data.map((row) => ({
+    business_id: tenant.businessId,
+    weekday: row.weekday,
+    is_closed: row.is_closed,
+    start_time: row.start_time,
+    end_time: row.end_time,
+  }))
+
+  const { error } = await supabase
+    .from('business_hours')
+    .upsert(upsertRows, { onConflict: 'business_id,weekday' })
+
+  if (error) return { error: 'Failed to save hours.' }
+
+  revalidatePath('/app/settings/availability')
+  return { success: true }
+}
+
+// ─── Staff ───────────────────────────────────────────────────────────────────
+
+export async function createStaffAction(formData: FormData) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const parsed = createStaffSchema.safeParse({
+    displayName: formData.get('displayName'),
+    email: formData.get('email') || undefined,
+    phone: formData.get('phone') || undefined,
+    colorCode: formData.get('colorCode') || '#6366f1',
+    bio: formData.get('bio') || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const supabase = await createSupabaseServerClient()
+  const { data, error } = await supabase
+    .from('staff')
+    .insert({
+      business_id: tenant.businessId,
+      display_name: parsed.data.displayName,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      color_code: parsed.data.colorCode,
+      bio: parsed.data.bio || null,
+    })
+    .select('id')
+    .single()
+
+  if (error || !data) return { error: 'Failed to create staff member.' }
+
+  revalidatePath('/app/settings/staff')
+  return { success: true, staffId: data.id }
+}
+
+export async function updateStaffAction(staffId: string, formData: FormData) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const parsed = createStaffSchema.safeParse({
+    displayName: formData.get('displayName'),
+    email: formData.get('email') || undefined,
+    phone: formData.get('phone') || undefined,
+    colorCode: formData.get('colorCode') || '#6366f1',
+    bio: formData.get('bio') || undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase
+    .from('staff')
+    .update({
+      display_name: parsed.data.displayName,
+      email: parsed.data.email || null,
+      phone: parsed.data.phone || null,
+      color_code: parsed.data.colorCode,
+      bio: parsed.data.bio || null,
+    })
+    .eq('id', staffId)
+    .eq('business_id', tenant.businessId)
+
+  if (error) return { error: 'Failed to update staff member.' }
+
+  revalidatePath('/app/settings/staff')
+  return { success: true }
+}
+
+export async function archiveStaffAction(staffId: string) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase
+    .from('staff')
+    .update({ is_active: false, archived_at: new Date().toISOString() })
+    .eq('id', staffId)
+    .eq('business_id', tenant.businessId)
+
+  if (error) return { error: 'Failed to archive staff member.' }
+
+  revalidatePath('/app/settings/staff')
+  return { success: true }
+}
+
+export async function restoreStaffAction(staffId: string) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase
+    .from('staff')
+    .update({ is_active: true, archived_at: null })
+    .eq('id', staffId)
+    .eq('business_id', tenant.businessId)
+
+  if (error) return { error: 'Failed to restore staff member.' }
+
+  revalidatePath('/app/settings/staff')
+  return { success: true }
+}
+
+const workingHoursRowSchema = z.object({
+  weekday: z.coerce.number().int().min(0).max(6),
+  is_off: z.boolean(),
+  start_time: z.string().regex(/^\d{2}:\d{2}$/),
+  end_time: z.string().regex(/^\d{2}:\d{2}$/),
+})
+
+export async function upsertStaffWorkingHoursAction(
+  staffId: string,
+  rows: Array<{
+    weekday: number
+    is_off: boolean
+    start_time: string
+    end_time: string
+  }>
+) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const parsed = z.array(workingHoursRowSchema).safeParse(rows)
+  if (!parsed.success) return { error: 'Invalid working hours data.' }
+
+  const supabase = await createSupabaseServerClient()
+
+  // Verify staff belongs to this business
+  const { data: staffRow } = await supabase
+    .from('staff')
+    .select('id')
+    .eq('id', staffId)
+    .eq('business_id', tenant.businessId)
+    .single()
+  if (!staffRow) return { error: 'Staff not found.' }
+
+  const upsertRows = parsed.data.map((row) => ({
+    business_id: tenant.businessId,
+    staff_id: staffId,
+    weekday: row.weekday,
+    is_off: row.is_off,
+    start_time: row.start_time,
+    end_time: row.end_time,
+  }))
+
+  const { error } = await supabase
+    .from('staff_working_hours')
+    .upsert(upsertRows, { onConflict: 'staff_id,weekday' })
+
+  if (error) return { error: 'Failed to save working hours.' }
+
+  revalidatePath('/app/settings/staff')
+  return { success: true }
+}
+
+export async function updateStaffServicesAction(staffId: string, serviceIds: string[]) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const supabase = await createSupabaseServerClient()
+
+  // Verify staff belongs to this business
+  const { data: staffRow } = await supabase
+    .from('staff')
+    .select('id')
+    .eq('id', staffId)
+    .eq('business_id', tenant.businessId)
+    .single()
+  if (!staffRow) return { error: 'Staff not found.' }
+
+  // Delete all existing assignments for this staff member, then re-insert
+  await supabase.from('staff_services').delete().eq('staff_id', staffId)
+
+  if (serviceIds.length > 0) {
+    const inserts = serviceIds.map((serviceId) => ({
+      business_id: tenant.businessId,
+      staff_id: staffId,
+      service_id: serviceId,
+    }))
+    const { error } = await supabase.from('staff_services').insert(inserts)
+    if (error) return { error: 'Failed to update service assignments.' }
+  }
+
+  revalidatePath('/app/settings/staff')
+  return { success: true }
+}
+
+// ─── Services ────────────────────────────────────────────────────────────────
+
+export async function createServiceAction(formData: FormData) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const parsed = createServiceSchema.safeParse({
+    name: formData.get('name'),
+    description: formData.get('description') || undefined,
+    durationMinutes: Number(formData.get('durationMinutes')),
+    bufferBeforeMinutes: Number(formData.get('bufferBeforeMinutes') || 0),
+    bufferAfterMinutes: Number(formData.get('bufferAfterMinutes') || 0),
+    price: formData.get('price') ? Number(formData.get('price')) : undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase.from('services').insert({
+    business_id: tenant.businessId,
+    name: parsed.data.name,
+    description: parsed.data.description || null,
+    duration_minutes: parsed.data.durationMinutes,
+    buffer_before_minutes: parsed.data.bufferBeforeMinutes,
+    buffer_after_minutes: parsed.data.bufferAfterMinutes,
+    price: parsed.data.price ?? null,
+  })
+
+  if (error) return { error: 'Failed to create service.' }
+
+  revalidatePath('/app/settings/services')
+  return { success: true }
+}
+
+export async function updateServiceAction(serviceId: string, formData: FormData) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const parsed = createServiceSchema.safeParse({
+    name: formData.get('name'),
+    description: formData.get('description') || undefined,
+    durationMinutes: Number(formData.get('durationMinutes')),
+    bufferBeforeMinutes: Number(formData.get('bufferBeforeMinutes') || 0),
+    bufferAfterMinutes: Number(formData.get('bufferAfterMinutes') || 0),
+    price: formData.get('price') ? Number(formData.get('price')) : undefined,
+  })
+  if (!parsed.success) return { error: parsed.error.issues[0].message }
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase
+    .from('services')
+    .update({
+      name: parsed.data.name,
+      description: parsed.data.description || null,
+      duration_minutes: parsed.data.durationMinutes,
+      buffer_before_minutes: parsed.data.bufferBeforeMinutes,
+      buffer_after_minutes: parsed.data.bufferAfterMinutes,
+      price: parsed.data.price ?? null,
+    })
+    .eq('id', serviceId)
+    .eq('business_id', tenant.businessId)
+
+  if (error) return { error: 'Failed to update service.' }
+
+  revalidatePath('/app/settings/services')
+  return { success: true }
+}
+
+export async function archiveServiceAction(serviceId: string) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase
+    .from('services')
+    .update({ is_active: false, archived_at: new Date().toISOString() })
+    .eq('id', serviceId)
+    .eq('business_id', tenant.businessId)
+
+  if (error) return { error: 'Failed to archive service.' }
+
+  revalidatePath('/app/settings/services')
+  return { success: true }
+}
+
+export async function restoreServiceAction(serviceId: string) {
+  const tenant = await getCurrentTenant()
+  requireRole(tenant, ['owner', 'manager'])
+
+  const supabase = await createSupabaseServerClient()
+  const { error } = await supabase
+    .from('services')
+    .update({ is_active: true, archived_at: null })
+    .eq('id', serviceId)
+    .eq('business_id', tenant.businessId)
+
+  if (error) return { error: 'Failed to restore service.' }
+
+  revalidatePath('/app/settings/services')
+  return { success: true }
+}
